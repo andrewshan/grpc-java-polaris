@@ -17,16 +17,18 @@
 package com.tencent.polaris.grpc.resolver;
 
 import com.tencent.polaris.api.core.ConsumerAPI;
+import com.tencent.polaris.api.exception.PolarisException;
+import com.tencent.polaris.client.api.SDKContext;
 import com.tencent.polaris.factory.api.DiscoveryAPIFactory;
-import com.tencent.polaris.grpc.util.JvmShutdownHookUtil;
+import com.tencent.polaris.grpc.exception.PolarisGrpcException;
 import io.grpc.NameResolver;
 import io.grpc.NameResolverProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Service provider class
@@ -35,43 +37,42 @@ import java.util.regex.Pattern;
  */
 public class PolarisNameResolverProvider extends NameResolverProvider {
     
-    private final Logger log = LoggerFactory.getLogger(PolarisNameResolverProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PolarisNameResolverProvider.class);
     
     private static final int DEFAULT_PRIORITY = 5;
     
     private static final String DEFAULT_SCHEME = "polaris";
-    
+
     private static final String PATTERN = "polaris://[a-zA-Z0-9_:.-]{1,128}";
-    
-    private final ConsumerAPI consumerAPI = DiscoveryAPIFactory.createConsumerAPI();
-    
-    
-    public PolarisNameResolverProvider() {
-        JvmShutdownHookUtil.addHook(consumerAPI::destroy);
+
+    private final SDKContext context;
+
+    private final ConsumerAPI consumerAPI;
+
+    public PolarisNameResolverProvider(final SDKContext context) {
+        this.context = context;
+        this.consumerAPI = DiscoveryAPIFactory.createConsumerAPIByContext(context);
     }
-    
+
     /**
-     * Create service discovery class
+     * Creates a NameResolver for the given target URI.
      *
-     * @param targetUri
-     * @param args
-     * @return
+     * @param targetUri the target URI to be resolved, whose scheme must not be null
+     * @param args      other information that may be useful
+     * @return NameResolver
      */
     @Override
     public NameResolver newNameResolver(URI targetUri, NameResolver.Args args) {
-        Pattern pattern = Pattern.compile(PATTERN);
-        Matcher matcher = pattern.matcher(targetUri.toString());
-        if (!matcher.matches()) {
-            log.error("target format is wrong,reference: polaris://[serviceName]");
+        if (!DEFAULT_SCHEME.equals(targetUri.getScheme())) {
             return null;
         }
-        return new PolarisNameResolver(targetUri, consumerAPI);
+        return new PolarisNameResolver(targetUri, context, consumerAPI);
     }
     
     /**
-     * service is available
+     * service is available.
      *
-     * @return
+     * @return isAvailable
      */
     @Override
     protected boolean isAvailable() {
@@ -79,9 +80,9 @@ public class PolarisNameResolverProvider extends NameResolverProvider {
     }
     
     /**
-     * Default priority 5
+     * Default priority 5.
      *
-     * @return
+     * @return priority
      */
     @Override
     protected int priority() {

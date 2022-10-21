@@ -14,20 +14,19 @@
  * the License.
  */
 
-package com.tencent.polaris.grpc.util;
+package com.tencent.polaris.grpc.server;
+
+import com.tencent.polaris.api.pojo.Instance;
+import com.tencent.polaris.api.rpc.InstanceRegisterRequest;
+import com.tencent.polaris.api.rpc.InstanceRegisterResponse;
 
 /**
- * @author lixiaoshuang
+ * @author <a href="mailto:liaochuntao@live.com">liaochuntao</a>
  */
-public class JvmShutdownHookUtil {
-    
-    /**
-     * Add JVM callback hooks
-     *
-     * @param runnable
-     */
-    public static boolean addHook(Runnable runnable) {
-        Runtime.getRuntime().addShutdownHook(new Thread(runnable));
-        return true;
-    }
+public interface RegisterHook {
+
+    void beforeRegister(InstanceRegisterRequest instance);
+
+    void afterRegister(InstanceRegisterResponse instance);
+
 }
